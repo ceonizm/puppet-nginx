@@ -103,3 +103,6 @@
     error_log <%= @error_log %> <%= @error_level %>;
     <% end -%>
 <% end -%>
+<% if @error_log -%>
+    error_log <%= @error_log %>;
+<% end -%>
