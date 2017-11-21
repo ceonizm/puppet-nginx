@@ -106,6 +106,7 @@
 #   [*access_log*]      - disable or override the logging in access_log (log format can be set with $format_log)
 #   [*error_log*]       - override the error_log for this location
 #   [*log_not_found*]   - enable or disable the logging of not found errors in error_log
+#   [*add_header*]      - Hash: Adds headers to the location block.  If any are specified, locations will no longer inherit headers from the parent server context
 #
 #
 # Actions:
@@ -219,11 +220,6 @@ define nginx::resource::location (
   Boolean $mp4                                         = false,
   Boolean $flv                                         = false,
   Optional[String] $expires                            = undef,
-  $format_log                                          = 'combined',
-  $error_level                                         = 'error',
-  Optional[Variant[Array, String]] $access_log         = undef,
-  Optional[Enum['on', 'off']] $log_not_found           = undef,
-  Optional[Variant[Array, String]] $error_log          = undef
 ) {
 
   if ! defined(Class['nginx']) {
