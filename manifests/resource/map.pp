@@ -10,7 +10,7 @@
 #   [*mappings*]   - Hash of map lookup keys and resultant values
 #   [*hostnames*]  - Indicates that source values can be hostnames with a
 #                    prefix or suffix mask.
-#   [*include_files*]   - An array of external files to include
+#   [*includes*]   - An array of external files to include
 #
 # Actions:
 #
@@ -43,7 +43,7 @@
 #
 # nginx::resource::map { 'redirections':
 #
-#    include_files => [ '/etc/nginx/conf.d/redirections.map']
+#    includes => [ '/etc/nginx/conf.d/redirections.map']
 #
 # }
 #
@@ -76,7 +76,7 @@ define nginx::resource::map (
   Variant[Array, Hash] $mappings,
   Optional[String] $default         = undef,
   Enum['absent', 'present'] $ensure = 'present',
-  Array[String] $include_files      = [],
+  Array[String] $includes           = [],
   Boolean $hostnames                = false
 ) {
   if ! defined(Class['nginx']) {
