@@ -103,7 +103,8 @@
 #   [*flv*]             - Indicates whether or not this loation can be
 #     used for flv streaming. Default: false
 #   [*expires*]         - Setup expires time for locations content
-#   [*access_log*]      - enable or disable the logging in access_log
+#   [*access_log*]      - disable or override the logging in access_log (log format can be set with $format_log)
+#   [*error_log*]       - override the error_log for this location
 #   [*log_not_found*]   - enable or disable the logging of not found errors in error_log
 #
 #
@@ -203,7 +204,7 @@ define nginx::resource::location (
   Optional[String] $proxy_cache                        = undef,
   Optional[String] $proxy_cache_key                    = undef,
   Optional[String] $proxy_cache_use_stale              = undef,
-  Optional[String] $proxy_cache_lock                   = undef,
+  Optional[Enum['on', 'off']] $proxy_cache_lock        = undef,
   Optional[Variant[Array, String]] $proxy_cache_valid  = undef,
   Optional[Variant[Array, String]] $proxy_cache_bypass = undef,
   Optional[String] $proxy_method                       = undef,
@@ -218,8 +219,14 @@ define nginx::resource::location (
   Boolean $mp4                                         = false,
   Boolean $flv                                         = false,
   Optional[String] $expires                            = undef,
-  Optional[Enum['on','off']] $log_not_found           = undef,
-  Optional[Enum['on','off']] $access_log              = undef,
+  $format_log                                          = 'combined',
+  $error_level                                         = 'error',
+  Optional[Variant[Array, String]] $access_log         = undef,
+  Optional[Enum['on', 'off']] $log_not_found           = undef,
+  Optional[Variant[Array, String]] $error_log          = undef
+) {
+
+  if ! defined(Class['nginx']) {
 ) {
 
   if ! defined(Class['nginx']) {
