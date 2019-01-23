@@ -250,9 +250,6 @@ define nginx::resource::location (
 ) {
 
   if ! defined(Class['nginx']) {
-) {
-
-  if ! defined(Class['nginx']) {
     fail('You must include the nginx base class before using any defined resources')
   }
 
