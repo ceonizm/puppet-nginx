@@ -83,6 +83,7 @@ class nginx::config {
   $log_format                     = $nginx::log_format
   $mail                           = $nginx::mail
   $stream                         = $nginx::stream
+  $map_hash_bucket_size           = $nginx::map_hash_bucket_size
   $mime_types                     = $nginx::mime_types_preserve_defaults ? {
     true    => merge($nginx::params::mime_types,$nginx::mime_types),
     default => $nginx::mime_types,
