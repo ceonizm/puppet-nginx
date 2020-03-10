@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe 'nginx' do
   on_supported_os.each do |os, facts|
-    context "on #{os}" do
+    context "on #{os} with Facter #{facts[:facterversion]} and Puppet #{facts[:puppetversion]}" do
       let(:facts) do
         facts
       end
@@ -43,7 +43,7 @@ describe 'nginx' do
             it { is_expected.to contain_package('nginx') }
             it do
               is_expected.to contain_yumrepo('nginx-release').with(
-                'baseurl'  => "https://nginx.org/packages/#{facts[:operatingsystem] == 'CentOS' ? 'centos' : 'rhel'}/#{facts[:operatingsystemmajrelease]}/$basearch/",
+                'baseurl'  => "https://nginx.org/packages/#{%w[CentOS VirtuozzoLinux].include?(facts[:operatingsystem]) ? 'centos' : 'rhel'}/#{facts[:operatingsystemmajrelease]}/$basearch/",
                 'descr'    => 'nginx repo',
                 'enabled'  => '1',
                 'gpgcheck' => '1',
@@ -66,7 +66,7 @@ describe 'nginx' do
             it { is_expected.to contain_package('nginx') }
             it do
               is_expected.to contain_yumrepo('nginx-release').with(
-                'baseurl'  => "https://nginx.org/packages/#{facts[:operatingsystem] == 'CentOS' ? 'centos' : 'rhel'}/#{facts[:operatingsystemmajrelease]}/$basearch/",
+                'baseurl'  => "https://nginx.org/packages/#{%w[CentOS VirtuozzoLinux].include?(facts[:operatingsystem]) ? 'centos' : 'rhel'}/#{facts[:operatingsystemmajrelease]}/$basearch/",
                 'descr'    => 'nginx repo',
                 'enabled'  => '1',
                 'gpgcheck' => '1',
@@ -83,7 +83,7 @@ describe 'nginx' do
 
             it do
               is_expected.to contain_yumrepo('nginx-release').with(
-                'baseurl' => "https://nginx.org/packages/mainline/#{facts[:operatingsystem] == 'CentOS' ? 'centos' : 'rhel'}/#{facts[:operatingsystemmajrelease]}/$basearch/"
+                'baseurl' => "https://nginx.org/packages/mainline/#{%w[CentOS VirtuozzoLinux].include?(facts[:operatingsystem]) ? 'centos' : 'rhel'}/#{facts[:operatingsystemmajrelease]}/$basearch/"
               )
             end
             it do
@@ -148,6 +148,16 @@ describe 'nginx' do
                 'location'   => "https://nginx.org/packages/#{facts[:operatingsystem].downcase}",
                 'repos'      => 'nginx',
                 'key' => { 'id' => '573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62' }
+              )
+            end
+          end
+
+          context 'repo_source' do
+            let(:params) { { repo_source: 'https://example.com/nginx' } }
+
+            it do
+              is_expected.to contain_apt__source('nginx').with(
+                'location' => 'https://example.com/nginx'
               )
             end
           end
@@ -289,26 +299,54 @@ describe 'nginx' do
             )
           end
           it do
-            is_expected.to contain_file('/var/nginx').with(
-              ensure: 'directory',
-              owner: 'root',
-              group: 'root',
-              mode: '0644'
-            )
+            case facts[:osfamily]
+            when 'Debian'
+              is_expected.to contain_file('/run/nginx').with(
+                ensure: 'directory',
+                owner: 'root',
+                group: 'root',
+                mode: '0644'
+              )
+            else
+              is_expected.to contain_file('/var/nginx').with(
+                ensure: 'directory',
+                owner: 'root',
+                group: 'root',
+                mode: '0644'
+              )
+            end
           end
           it do
-            is_expected.to contain_file('/var/nginx/client_body_temp').with(
-              ensure: 'directory',
-              group: 'root',
-              mode: '0644'
-            )
+            case facts[:osfamily]
+            when 'Debian'
+              is_expected.to contain_file('/run/nginx/client_body_temp').with(
+                ensure: 'directory',
+                group: 'root',
+                mode: '0644'
+              )
+            else
+              is_expected.to contain_file('/var/nginx/client_body_temp').with(
+                ensure: 'directory',
+                group: 'root',
+                mode: '0644'
+              )
+            end
           end
           it do
-            is_expected.to contain_file('/var/nginx/proxy_temp').with(
-              ensure: 'directory',
-              group: 'root',
-              mode: '0644'
-            )
+            case facts[:osfamily]
+            when 'Debian'
+              is_expected.to contain_file('/run/nginx/proxy_temp').with(
+                ensure: 'directory',
+                group: 'root',
+                mode: '0644'
+              )
+            else
+              is_expected.to contain_file('/var/nginx/proxy_temp').with(
+                ensure: 'directory',
+                group: 'root',
+                mode: '0644'
+              )
+            end
           end
           it do
             is_expected.to contain_file('/etc/nginx/nginx.conf').with(
@@ -354,8 +392,8 @@ describe 'nginx' do
               )
             end
           when 'Debian'
-            it { is_expected.to contain_file('/var/nginx/client_body_temp').with(owner: 'www-data') }
-            it { is_expected.to contain_file('/var/nginx/proxy_temp').with(owner: 'www-data') }
+            it { is_expected.to contain_file('/run/nginx/client_body_temp').with(owner: 'www-data') }
+            it { is_expected.to contain_file('/run/nginx/proxy_temp').with(owner: 'www-data') }
             it { is_expected.to contain_file('/etc/nginx/nginx.conf').with_content %r{^user www-data;} }
             it do
               is_expected.to contain_file('/var/log/nginx').with(
@@ -449,6 +487,18 @@ describe 'nginx' do
                 attr: 'nginx_error_log_severity',
                 value: 'warn',
                 match: '  error_log /var/log/nginx/error.log warn;'
+              },
+              {
+                title: 'should set limit_req_zone',
+                attr: 'limit_req_zone',
+                value: [
+                  '$binary_remote_addr zone=myzone1:10m rate=5r/s',
+                  '$binary_remote_addr zone=myzone2:10m rate=5r/s'
+                ],
+                match: [
+                  '  limit_req_zone $binary_remote_addr zone=myzone1:10m rate=5r/s;',
+                  '  limit_req_zone $binary_remote_addr zone=myzone2:10m rate=5r/s;'
+                ]
               },
               {
                 title: 'should set pid',
@@ -964,9 +1014,15 @@ describe 'nginx' do
           context 'when conf_dir is /path/to/nginx' do
             let(:params) { { conf_dir: '/path/to/nginx' } }
 
-            it { is_expected.to contain_file('/path/to/nginx/nginx.conf').with_content(%r{include       /path/to/nginx/mime\.types;}) }
+            it { is_expected.to contain_file('/path/to/nginx/nginx.conf').with_content(%r{include       mime\.types;}) }
             it { is_expected.to contain_file('/path/to/nginx/nginx.conf').with_content(%r{include /path/to/nginx/conf\.d/\*\.conf;}) }
             it { is_expected.to contain_file('/path/to/nginx/nginx.conf').with_content(%r{include /path/to/nginx/sites-enabled/\*;}) }
+          end
+
+          context 'when mime_types_path is /path/to/mime.types' do
+            let(:params) { { mime_types_path: '/path/to/mime.types' } }
+
+            it { is_expected.to contain_file('/etc/nginx/nginx.conf').with_content(%r{include       /path/to/mime\.types;}) }
           end
 
           context 'when confd_purge true' do
@@ -1130,8 +1186,14 @@ describe 'nginx' do
           context 'when daemon_user = www-data' do
             let(:params) { { daemon_user: 'www-data' } }
 
-            it { is_expected.to contain_file('/var/nginx/client_body_temp').with(owner: 'www-data') }
-            it { is_expected.to contain_file('/var/nginx/proxy_temp').with(owner: 'www-data') }
+            case facts[:osfamily]
+            when 'Debian'
+              it { is_expected.to contain_file('/run/nginx/client_body_temp').with(owner: 'www-data') }
+              it { is_expected.to contain_file('/run/nginx/proxy_temp').with(owner: 'www-data') }
+            else
+              it { is_expected.to contain_file('/var/nginx/client_body_temp').with(owner: 'www-data') }
+              it { is_expected.to contain_file('/var/nginx/proxy_temp').with(owner: 'www-data') }
+            end
             it { is_expected.to contain_file('/etc/nginx/nginx.conf').with_content %r{^user www-data;} }
           end
 

@@ -1,9 +1,9 @@
-<%- | $_server,
+<%- | $server,
       Boolean                         $backup           = false,
       Optional[String[1]]             $comment          = undef,
       Optional[Nginx::Time]           $fail_timeout     = undef,
       Optional[Integer[1]]            $max_conns        = undef,
-      Optional[Integer[1]]            $max_fails        = undef,
+      Optional[Integer[0]]            $max_fails        = undef,
       Optional[String[1]]             $params_append    = undef,
       Optional[String[1]]             $params_prepend   = undef,
       Boolean                         $resolve          = false,
@@ -13,7 +13,7 @@
       Optional[Enum['drain','down']]  $state            = undef,
       Optional[Integer[1]]            $weight           = undef,
 | -%>
-  server <%= $_server -%>
+  server <%= $server -%>
 <%- if $params_prepend { %> <%= $params_prepend %><% } -%>
 <%- if $state { %> <%= $state %><% } -%>
 <%- if $weight { %> weight=<%= $weight %><% } -%>

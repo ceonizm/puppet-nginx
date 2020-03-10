@@ -59,7 +59,9 @@ http {
   <%- end -%>
   <%- end -%>
 <% end -%>
-  include       <%= @conf_dir %>/mime.types;
+<% if @mime_types_path.is_a? String and @mime_types_path.empty? == false -%>
+  include       <%= @mime_types_path %>;
+<% end -%>
   default_type  application/octet-stream;
 <% if @log_format -%>
 <% @log_format.sort_by{|k,v| k}.each do |key,value| -%>
@@ -85,6 +87,16 @@ http {
   error_log <%= @nginx_error_log %> <%= @nginx_error_log_severity %>;
 <% end -%>
 
+<% if @limit_req_zone -%>
+<% if @limit_req_zone.is_a?(Array) -%>
+<%- @limit_req_zone.each do |limit_req_zone_item| -%>
+  limit_req_zone <%= limit_req_zone_item %>;
+<% end -%>
+<% else -%>
+  limit_req_zone <%= @limit_req_zone %>;
+<% end -%>
+<% end -%>
+
 <% if @sendfile == 'on' -%>
   sendfile on;
   <%- if @http_tcp_nopush == 'on' -%>
@@ -95,6 +107,7 @@ http {
 
   types_hash_max_size <%= @types_hash_max_size %>;
   types_hash_bucket_size <%= @types_hash_bucket_size %>;
+  map_hash_bucket_size <%= @map_hash_bucket_size %>;
 
   server_names_hash_bucket_size <%= @names_hash_bucket_size %>;
   server_names_hash_max_size <%= @names_hash_max_size %>;

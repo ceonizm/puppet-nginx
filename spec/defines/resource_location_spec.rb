@@ -3,7 +3,7 @@ require 'digest/md5'
 
 describe 'nginx::resource::location' do
   on_supported_os.each do |os, facts|
-    context "on #{os}" do
+    context "on #{os} with Facter #{facts[:facterversion]} and Puppet #{facts[:puppetversion]}" do
       let(:facts) do
         facts
       end
@@ -99,6 +99,12 @@ describe 'nginx::resource::location' do
               attr: 'location_satisfy',
               value: 'any',
               match: '    satisfy any;'
+            },
+            {
+              title: 'should set limit_zone',
+              attr: 'limit_zone',
+              value: 'myzone1',
+              match: '    limit_req zone=myzone1;'
             },
             {
               title: 'should set expires',
@@ -358,6 +364,12 @@ describe 'nginx::resource::location' do
               match: '    autoindex on;'
             },
             {
+              title: 'should set autoindex_format',
+              attr: 'autoindex_format',
+              value: 'html',
+              match: '    autoindex_format html;'
+            },
+            {
               title: 'should set try_file(s)',
               attr: 'try_files',
               value: %w[name1 name2],
@@ -513,6 +525,26 @@ describe 'nginx::resource::location' do
             it 'does not set autoindex' do
               is_expected.to contain_concat__fragment('server1-500-' + Digest::MD5.hexdigest('location')).
                 without_content(%r{^[ ]+autoindex[^;]+;})
+            end
+          end
+
+          context "when autoindex_localtime is 'on'" do
+            let(:params) { default_params.merge(autoindex_localtime: 'on') }
+
+            it { is_expected.to contain_concat__fragment('server1-500-' + Digest::MD5.hexdigest('location')) }
+            it 'sets autoindex_localtime' do
+              is_expected.to contain_concat__fragment('server1-500-' + Digest::MD5.hexdigest('location')).
+                with_content(%r{^[ ]+autoindex_localtime\s+on;})
+            end
+          end
+
+          context 'when autoindex_localtime is not set' do
+            let(:params) { default_params }
+
+            it { is_expected.to contain_concat__fragment('server1-500-' + Digest::MD5.hexdigest('location')) }
+            it 'does not set autoindex_localtime' do
+              is_expected.to contain_concat__fragment('server1-500-' + Digest::MD5.hexdigest('location')).
+                without_content(%r{^[ ]+autoindex_localtime[^;]+;})
             end
           end
         end
@@ -920,6 +952,96 @@ describe 'nginx::resource::location' do
               attr: 'proxy_buffering',
               value: 'on',
               match: %r{\s+proxy_buffering\s+on;}
+            },
+            {
+              title: 'should set proxy_max_temp_file_size',
+              attr: 'proxy_max_temp_file_size',
+              value: '1024m',
+              match: %r{\s+proxy_max_temp_file_size\s+1024m;}
+            },
+            {
+              title: 'should set proxy_busy_buffers_size',
+              attr: 'proxy_busy_buffers_size',
+              value: '16k',
+              match: %r{\s+proxy_busy_buffers_size\s+16k;}
+            },
+            {
+              title: 'access_log undef',
+              attr: 'access_log',
+              value: :undef,
+              notmatch: %r{\s+access_log\s+.+;}
+            },
+            {
+              title: 'disabling access_log ',
+              attr: 'access_log',
+              value: 'off',
+              match: %r{\s+access_log\s+off;}
+            },
+            {
+              title: 'override access_log ',
+              attr: 'access_log',
+              value: '/var/log/nginx/specific-location.log',
+              match: %r{\s+access_log\s+/var/log/nginx/specific-location.log combined;}
+            },
+            {
+              title: 'override access_log with an array',
+              attr: 'access_log',
+              value: [
+                '/var/log/nginx/specific-location.log',
+                'syslog:10.0.0.1'
+              ],
+              match: [
+                %r{\s+access_log\s+/var/log/nginx/specific-location.log combined;},
+                %r{\s+access_log\s+syslog:10\.0\.0\.1 combined;}
+              ]
+            },
+            {
+              title: 'enabling logging errors not found ',
+              attr: 'log_not_found',
+              value: 'off',
+              match: %r{\s+log_not_found\s+off;}
+            },
+            {
+              title: 'enabling logging errors not found ',
+              attr: 'log_not_found',
+              value: 'on',
+              match: %r{\s+log_not_found\s+on;}
+            },
+            {
+              title: 'disabling error_log ',
+              attr: 'error_log',
+              value: 'off',
+              match: %r{\s+error_log\s+off;}
+            },
+            {
+              title: 'overriding error_log ',
+              attr: 'error_log',
+              value: '/my-error_log',
+              match: %r{\s+error_log\s+/my-error_log error;}
+            },
+            {
+              title: 'overriding error_log with an array',
+              attr: 'error_log',
+              value: [
+                '/my-error_log',
+                'syslog:10.0.0.1'
+              ],
+              match: [
+                %r{\s+error_log\s+/my-error_log error;},
+                %r{\s+error_log\s+syslog:10\.0\.0\.1 error;}
+              ]
+            },
+            {
+              title: 'should set proxy_max_temp_file_size',
+              attr: 'proxy_max_temp_file_size',
+              value: '1024m',
+              match: %r{\s+proxy_max_temp_file_size\s+1024m;}
+            },
+            {
+              title: 'should set proxy_busy_buffers_size',
+              attr: 'proxy_busy_buffers_size',
+              value: '16k',
+              match: %r{\s+proxy_busy_buffers_size\s+16k;}
             },
             {
               title: 'access_log undef',

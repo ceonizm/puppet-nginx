@@ -17,6 +17,13 @@
 #     read from. Cannot be set in conjunction with $proxy
 #   [*autoindex*]            - Set it on 'on' to activate autoindex directory
 #     listing. Undef by default.
+#   [*autoindex_exact_size*]       - Set it on 'on' or 'off' to
+#     activate/deactivate autoindex displaying exact filesize, or rounded to
+#     kilobytes, megabytes and gigabytes. Undef by default.
+#   [*autoindex_format*]           - Sets the format of a directory listing.
+#     Undef by default.
+#   [*autoindex_localtime*]        - Specifies whether times in the directory
+#     listing should be output in the local time zone or UTC.
 #   [*index_files*]          - Default index files for NGINX to read when
 #     traversing a directory
 #   [*proxy*]                - Proxy server(s) for a location to connect to.
@@ -60,6 +67,8 @@
 #   [*raw_append*]           - A single string, or an array of strings to
 #     append to the location directive (after custom_cfg directives). NOTE:
 #     YOU are responsible for a semicolon on each line that requires one.
+#   [*limit_zone*]           - Apply a limit_req_zone to the location. Expects a string indicating a
+#     previously defined limit_req_zone in the main nginx configuration
 #   [*location_custom_cfg*]  - Expects a hash with custom directives, cannot
 #     be used with other location types (proxy, fastcgi, root, or stub_status)
 #   [*location_cfg_prepend*] - Expects a hash with extra directives to put
@@ -85,8 +94,8 @@
 #     of off.
 #   [*proxy_cache_valid*]     - This directive sets the time for caching
 #     different replies.
-#   [*proxy_cache_lock*]           - This directive sets the locking mechanism for pouplating cache.
-#   [*proxy_cache_bypass*]         - Defines conditions which the response will not be cached
+#   [*proxy_cache_lock*]      - This directive sets the locking mechanism for pouplating cache.
+#   [*proxy_cache_bypass*]    - Defines conditions which the response will not be cached
 #   [*proxy_method*]          - If defined, overrides the HTTP method of the
 #     request to be passed to the backend.
 #   [*proxy_http_version*]    - Sets the proxy http version
@@ -110,6 +119,7 @@
 #   [*flv*]             - Indicates whether or not this loation can be
 #     used for flv streaming. Default: false
 #   [*expires*]         - Setup expires time for locations content
+#   [*add_header*]      - Hash: Adds headers to the location block.  If any are specified, locations will no longer inherit headers from the parent server context
 #   [*access_log*]      - disable or override the logging in access_log (log format can be set with $format_log)
 #   [*error_log*]       - override the error_log for this location
 #   [*log_not_found*]   - enable or disable the logging of not found errors in error_log
@@ -174,82 +184,86 @@
 #  }
 
 define nginx::resource::location (
-  Enum['present', 'absent'] $ensure                    = 'present',
-  Boolean $internal                                    = false,
-  String $location                                     = $name,
-  Variant[String[1],Array[String[1],1]] $server        = undef,
-  Optional[String] $www_root                           = undef,
-  Optional[String] $autoindex                          = undef,
-  Array $index_files                                   = [
+  Enum['present', 'absent'] $ensure                                = 'present',
+  Boolean $internal                                                = false,
+  String $location                                                 = $name,
+  Variant[String[1],Array[String[1],1]] $server                    = undef,
+  Optional[String] $www_root                                       = undef,
+  Optional[String] $autoindex                                      = undef,
+  Optional[Enum['on', 'off']] $autoindex_exact_size                = undef,
+  Optional[Enum['html', 'xml', 'json', 'jsonp']] $autoindex_format = undef,
+  Optional[Enum['on', 'off']] $autoindex_localtime                 = undef,
+  Array $index_files                                               = [
     'index.html',
     'index.htm',
     'index.php'],
-  Optional[String] $proxy                              = undef,
-  Optional[String] $proxy_redirect                     = $nginx::proxy_redirect,
-  String $proxy_read_timeout                           = $nginx::proxy_read_timeout,
-  String $proxy_connect_timeout                        = $nginx::proxy_connect_timeout,
-  String $proxy_send_timeout                           = $nginx::proxy_send_timeout,
-  Array $proxy_set_header                              = $nginx::proxy_set_header,
-  Array $proxy_hide_header                             = $nginx::proxy_hide_header,
-  Array $proxy_pass_header                             = $nginx::proxy_pass_header,
-  Array $proxy_ignore_header                           = $nginx::proxy_ignore_header,
-  Optional[String] $proxy_next_upstream                = undef,
-  Optional[String] $fastcgi                            = undef,
-  Optional[String] $fastcgi_index                      = undef,
-  Optional[Hash] $fastcgi_param                        = undef,
-  String $fastcgi_params                               = "${nginx::conf_dir}/fastcgi.conf",
-  Optional[String] $fastcgi_script                     = undef,
-  Optional[String] $fastcgi_split_path                 = undef,
-  Optional[String] $uwsgi                              = undef,
-  Optional[Hash] $uwsgi_param                          = undef,
-  String $uwsgi_params                                 = "${nginx::config::conf_dir}/uwsgi_params",
-  Optional[String] $uwsgi_read_timeout                 = undef,
-  Boolean $ssl                                         = false,
-  Boolean $ssl_only                                    = false,
-  Optional[String] $location_alias                     = undef,
-  Optional[Enum['any', 'all']] $location_satisfy       = undef,
-  Optional[Array] $location_allow                      = undef,
-  Optional[Array] $location_deny                       = undef,
-  Optional[Boolean ] $stub_status                      = undef,
-  Optional[Variant[String, Array]] $raw_prepend        = undef,
-  Optional[Variant[String, Array]] $raw_append         = undef,
-  Optional[Hash] $location_custom_cfg                  = undef,
-  Optional[Hash] $location_cfg_prepend                 = undef,
-  Optional[Hash] $location_cfg_append                  = undef,
-  Optional[Hash] $location_custom_cfg_prepend          = undef,
-  Optional[Hash] $location_custom_cfg_append           = undef,
-  Optional[Array] $include                             = undef,
-  Optional[Array] $try_files                           = undef,
-  Optional[String] $proxy_cache                        = undef,
-  Optional[String] $proxy_cache_key                    = undef,
-  Optional[String] $proxy_cache_use_stale              = undef,
-  Optional[Enum['on', 'off']] $proxy_cache_lock        = undef,
-  Optional[Variant[Array, String]] $proxy_cache_valid  = undef,
-  Optional[Variant[Array, String]] $proxy_cache_bypass = undef,
-  Optional[String] $proxy_method                       = undef,
-  Optional[String] $proxy_http_version                 = undef,
-  Optional[String] $proxy_set_body                     = undef,
-  Optional[Enum['on', 'off']] $proxy_buffering         = undef,
-  Optional[Nginx::Size] $proxy_max_temp_file_size      = undef,
-  Optional[Nginx::Size] $proxy_busy_buffers_size       = undef,
-  Optional[Enum['on', 'off']] $absolute_redirect       = undef,
-  Optional[String] $auth_basic                         = undef,
-  Optional[String] $auth_basic_user_file               = undef,
-  Optional[String] $auth_request                       = undef,
-  Array $rewrite_rules                                 = [],
-  Integer[401,599] $priority                           = 500,
-  Boolean $mp4                                         = false,
-  Boolean $flv                                         = false,
-  Optional[String] $expires                            = undef,
-  $format_log                                          = 'combined',
-  $error_level                                         = 'error',
-  Optional[Variant[Array, String]] $access_log         = undef,
-  Optional[Enum['on', 'off']] $log_not_found           = undef,
-  Optional[Variant[Array, String]] $error_log          = undef,
-  Hash $add_header                                     = {},
+  Optional[String] $proxy                                          = undef,
+  Optional[String] $proxy_redirect                                 = $nginx::proxy_redirect,
+  String $proxy_read_timeout                                       = $nginx::proxy_read_timeout,
+  String $proxy_connect_timeout                                    = $nginx::proxy_connect_timeout,
+  String $proxy_send_timeout                                       = $nginx::proxy_send_timeout,
+  Array $proxy_set_header                                          = $nginx::proxy_set_header,
+  Array $proxy_hide_header                                         = $nginx::proxy_hide_header,
+  Array $proxy_pass_header                                         = $nginx::proxy_pass_header,
+  Array $proxy_ignore_header                                       = $nginx::proxy_ignore_header,
+  Optional[String] $proxy_next_upstream                            = undef,
+  Optional[String] $fastcgi                                        = undef,
+  Optional[String] $fastcgi_index                                  = undef,
+  Optional[Hash] $fastcgi_param                                    = undef,
+  String $fastcgi_params                                           = "${nginx::conf_dir}/fastcgi.conf",
+  Optional[String] $fastcgi_script                                 = undef,
+  Optional[String] $fastcgi_split_path                             = undef,
+  Optional[String] $uwsgi                                          = undef,
+  Optional[Hash] $uwsgi_param                                      = undef,
+  String $uwsgi_params                                             = "${nginx::config::conf_dir}/uwsgi_params",
+  Optional[String] $uwsgi_read_timeout                             = undef,
+  Boolean $ssl                                                     = false,
+  Boolean $ssl_only                                                = false,
+  Optional[String] $location_alias                                 = undef,
+  Optional[String[1]] $limit_zone                                  = undef,
+  Optional[Enum['any', 'all']] $location_satisfy                   = undef,
+  Optional[Array] $location_allow                                  = undef,
+  Optional[Array] $location_deny                                   = undef,
+  Optional[Boolean ] $stub_status                                  = undef,
+  Optional[Variant[String, Array]] $raw_prepend                    = undef,
+  Optional[Variant[String, Array]] $raw_append                     = undef,
+  Optional[Hash] $location_custom_cfg                              = undef,
+  Optional[Hash] $location_cfg_prepend                             = undef,
+  Optional[Hash] $location_cfg_append                              = undef,
+  Optional[Hash] $location_custom_cfg_prepend                      = undef,
+  Optional[Hash] $location_custom_cfg_append                       = undef,
+  Optional[Array] $include                                         = undef,
+  Optional[Array] $try_files                                       = undef,
+  Optional[String] $proxy_cache                                    = undef,
+  Optional[String] $proxy_cache_key                                = undef,
+  Optional[String] $proxy_cache_use_stale                          = undef,
+  Optional[Enum['on', 'off']] $proxy_cache_lock                    = undef,
+  Optional[Variant[Array, String]] $proxy_cache_valid              = undef,
+  Optional[Variant[Array, String]] $proxy_cache_bypass             = undef,
+  Optional[String] $proxy_method                                   = undef,
+  Optional[String] $proxy_http_version                             = undef,
+  Optional[String] $proxy_set_body                                 = undef,
+  Optional[Enum['on', 'off']] $proxy_buffering                     = undef,
+  Optional[Nginx::Size] $proxy_max_temp_file_size                  = undef,
+  Optional[Nginx::Size] $proxy_busy_buffers_size                   = undef,
+  Optional[Enum['on', 'off']] $absolute_redirect                   = undef,
+  Optional[String] $auth_basic                                     = undef,
+  Optional[String] $auth_basic_user_file                           = undef,
+  Optional[String] $auth_request                                   = undef,
+  Array $rewrite_rules                                             = [],
+  Integer[401,599] $priority                                       = 500,
+  Boolean $mp4                                                     = false,
+  Boolean $flv                                                     = false,
+  Optional[String] $expires                                        = undef,
+  Hash $add_header                                                 = {},
+  $format_log                                                      = 'combined',
+  $error_level                                                     = 'error',
+  Optional[Enum['on', 'off']] $log_not_found                       = undef,
+  Optional[Variant[Array, String]] $access_log                     = undef,
+  Optional[Variant[Array, String]] $error_log                      = undef
 ) {
 
-  if ! defined(Class['nginx']) {
+  if !defined(Class['nginx']) {
     fail('You must include the nginx base class before using any defined resources')
   }
 
@@ -275,7 +289,8 @@ define nginx::resource::location (
   # Use proxy, fastcgi or uwsgi template if $proxy is defined, otherwise use directory template.
   # fastcgi_script is deprecated
   if ($fastcgi_script != undef) {
-    warning('The $fastcgi_script parameter is deprecated; please use $fastcgi_param instead to define custom fastcgi_params!')
+    warning(
+      'The $fastcgi_script parameter is deprecated; please use $fastcgi_param instead to define custom fastcgi_params!')
   }
 
   # Only try to manage these files if they're the default one (as you presumably

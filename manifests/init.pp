@@ -24,6 +24,14 @@
 # node default {
 #   include nginx
 # }
+#
+# @param nginx_version
+#   The version of nginx installed (or being installed).
+#   Unfortunately, different versions of nginx may need configuring
+#   differently.  The default is derived from the version of nginx
+#   already installed.  If the fact is unavailable, it defaults to '1.6.0'.
+#   You may need to set this manually to get a working and idempotent
+#   configuration.
 class nginx (
   ### START Nginx Configuration ###
   Variant[Stdlib::Absolutepath, Boolean] $client_body_temp_path = $nginx::params::client_body_temp_path,
@@ -37,6 +45,7 @@ class nginx (
   $global_owner                                              = $nginx::params::global_owner,
   $global_group                                              = $nginx::params::global_group,
   $global_mode                                               = $nginx::params::global_mode,
+  Optional[Variant[String[1], Array[String[1]]]] $limit_req_zone = undef,
   Stdlib::Absolutepath $log_dir                              = $nginx::params::log_dir,
   String[1] $log_user                                        = $nginx::params::log_user,
   String[1] $log_group                                       = $nginx::params::log_group,
@@ -96,10 +105,12 @@ class nginx (
   $keepalive_requests                                        = '100',
   $log_format                                                = {},
   Boolean $mail                                              = false,
+  Variant[String, Boolean] $mime_types_path                  = 'mime.types',
   Boolean $stream                                            = false,
   String $multi_accept                                       = 'off',
   Integer $names_hash_bucket_size                            = 64,
   Integer $names_hash_max_size                               = 512,
+  Integer $map_hash_bucket_size                              = 64,
   $nginx_cfg_prepend                                         = false,
   String $proxy_buffers                                      = '32 4k',
   String $proxy_buffer_size                                  = '8k',
@@ -134,6 +145,8 @@ class nginx (
   Enum['on', 'off'] $spdy                                    = 'off',
   Enum['on', 'off'] $http2                                   = 'off',
   Enum['on', 'off'] $ssl_stapling                            = 'off',
+  Stdlib::Absolutepath $snippets_dir                         = $nginx::params::snippets_dir,
+  Boolean $manage_snippets_dir                               = true,
   $types_hash_bucket_size                                    = '512',
   $types_hash_max_size                                       = '1024',
   Integer $worker_connections                                = 1024,
@@ -154,6 +167,7 @@ class nginx (
   Boolean $mime_types_preserve_defaults                      = false,
   Optional[String] $repo_release                             = undef,
   $passenger_package_ensure                                  = 'present',
+  Optional[Stdlib::HTTPUrl] $repo_source                     = undef,
   ### END Package Configuration ###
 
   ### START Service Configuation ###
@@ -166,19 +180,23 @@ class nginx (
   ### END Service Configuration ###
 
   ### START Hiera Lookups ###
-  $geo_mappings                                              = {},
-  $string_mappings                                           = {},
-  $nginx_locations                                           = {},
-  $nginx_locations_defaults                                  = {},
-  $nginx_mailhosts                                           = {},
-  $nginx_mailhosts_defaults                                  = {},
-  $nginx_streamhosts                                         = {},
-  $nginx_upstreams                                           = {},
-  Nginx::UpstreamMemberDefaults $nginx_upstream_defaults     = {},
-  $nginx_servers                                             = {},
-  $nginx_servers_defaults                                    = {},
-  Boolean $purge_passenger_repo                              = true,
-  Boolean $add_listen_directive                              = $nginx::params::add_listen_directive,
+  Hash $geo_mappings                                      = {},
+  Hash $geo_mappings_defaults                             = {},
+  Hash $string_mappings                                   = {},
+  Hash $string_mappings_defaults                          = {},
+  Hash $nginx_locations                                   = {},
+  Hash $nginx_locations_defaults                          = {},
+  Hash $nginx_mailhosts                                   = {},
+  Hash $nginx_mailhosts_defaults                          = {},
+  Hash $nginx_servers                                     = {},
+  Hash $nginx_servers_defaults                            = {},
+  Hash $nginx_streamhosts                                 = {},
+  Hash $nginx_streamhosts_defaults                        = {},
+  Hash $nginx_upstreams                                   = {},
+  Nginx::UpstreamDefaults $nginx_upstreams_defaults       = {},
+  Boolean $purge_passenger_repo                           = true,
+  String[1] $nginx_version                                = pick(fact('nginx_version'), '1.6.0'),
+
   ### END Hiera Lookups ###
 ) inherits nginx::params {
 
@@ -186,13 +204,13 @@ class nginx (
   contain 'nginx::config'
   contain 'nginx::service'
 
-  create_resources('nginx::resource::upstream', $nginx_upstreams, $nginx_upstream_defaults)
-  create_resources('nginx::resource::server', $nginx_servers, $nginx_servers_defaults)
-  create_resources('nginx::resource::location', $nginx_locations, $nginx_locations_defaults)
-  create_resources('nginx::resource::mailhost', $nginx_mailhosts, $nginx_mailhosts_defaults)
-  create_resources('nginx::resource::streamhost', $nginx_streamhosts)
-  create_resources('nginx::resource::map', $string_mappings)
-  create_resources('nginx::resource::geo', $geo_mappings)
+  create_resources( 'nginx::resource::geo', $geo_mappings, $geo_mappings_defaults )
+  create_resources( 'nginx::resource::location', $nginx_locations, $nginx_locations_defaults )
+  create_resources( 'nginx::resource::mailhost', $nginx_mailhosts, $nginx_mailhosts_defaults )
+  create_resources( 'nginx::resource::map', $string_mappings, $string_mappings_defaults )
+  create_resources( 'nginx::resource::server', $nginx_servers, $nginx_servers_defaults )
+  create_resources( 'nginx::resource::streamhost', $nginx_streamhosts, $nginx_streamhosts_defaults )
+  create_resources( 'nginx::resource::upstream', $nginx_upstreams, $nginx_upstreams_defaults )
 
   # Allow the end user to establish relationships to the "main" class
   # and preserve the relationship to the implementation classes through

@@ -28,6 +28,7 @@ class nginx::config {
   $global_owner                   = $nginx::global_owner
   $global_group                   = $nginx::global_group
   $global_mode                    = $nginx::global_mode
+  $limit_req_zone                 = $nginx::limit_req_zone
   $log_dir                        = $nginx::log_dir
   $log_user                       = $nginx::log_user
   $log_group                      = $nginx::log_group
@@ -82,7 +83,9 @@ class nginx::config {
   $keepalive_requests             = $nginx::keepalive_requests
   $log_format                     = $nginx::log_format
   $mail                           = $nginx::mail
+  $mime_types_path                = $nginx::mime_types_path
   $stream                         = $nginx::stream
+  $map_hash_bucket_size           = $nginx::map_hash_bucket_size
   $mime_types                     = $nginx::mime_types_preserve_defaults ? {
     true    => merge($nginx::params::mime_types,$nginx::mime_types),
     default => $nginx::mime_types,
@@ -179,6 +182,12 @@ class nginx::config {
 
   file {$run_dir:
     ensure => directory,
+  }
+
+  if $nginx::manage_snippets_dir {
+    file { $nginx::snippets_dir:
+      ensure => directory,
+    }
   }
 
   file { $log_dir:

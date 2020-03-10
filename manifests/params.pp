@@ -107,14 +107,16 @@ class nginx::params {
       }
     }
     'Debian': {
-      if ($facts['os']['name'] == 'ubuntu' and $facts['lsbdistcodename'] in ['lucid', 'precise', 'trusty', 'xenial'])
-      or ($facts['os']['name'] == 'debian' and $facts['os']['release']['major'] in ['6', '7', '8', '9']) {
+      # $facts['os']['distro']['codename'] is not yet well established, so we stick with the legact lsb facts for now
+      if ($facts['os']['name'] == 'ubuntu' and $facts['lsbdistcodename'] in ['lucid', 'precise', 'trusty', 'xenial', 'bionic']) # lint:ignore:legacy_facts
+      or ($facts['os']['name'] == 'debian' and $facts['os']['release']['major'] in ['6', '7', '8', '9', '10']) {
         $_module_os_overrides = {
           'manage_repo' => true,
           'daemon_user' => 'www-data',
           'log_user'    => 'root',
           'log_group'   => 'adm',
           'log_mode'    => '0755',
+          'run_dir'     => '/run/nginx',
         }
       } else {
         $_module_os_overrides = {
@@ -122,6 +124,7 @@ class nginx::params {
           'log_user'    => 'root',
           'log_group'   => 'adm',
           'log_mode'    => '0755',
+          'run_dir'     => '/run/nginx',
         }
       }
     }
@@ -131,6 +134,7 @@ class nginx::params {
         'daemon_user' => 'www',
         'root_group'  => 'wheel',
         'log_group'   => 'wheel',
+        'log_user'    => 'root',
       }
     }
     'Gentoo': {
@@ -139,7 +143,7 @@ class nginx::params {
       }
     }
     'RedHat': {
-      if ($facts['os']['name'] in ['RedHat', 'CentOS', 'Oracle'] and $facts['os']['release']['major'] in ['6', '7']) {
+      if ($facts['os']['name'] in ['RedHat', 'CentOS', 'Oracle', 'virtuozzolinux'] and $facts['os']['release']['major'] in ['6', '7']) {
         $_module_os_overrides = {
           'manage_repo' => true,
           'log_group'   => 'nginx',
@@ -201,6 +205,7 @@ class nginx::params {
 
   ### Referenced Variables
   $conf_dir              = $_module_parameters['conf_dir']
+  $snippets_dir          = "${conf_dir}/snippets"
   $log_dir               = $_module_parameters['log_dir']
   $log_user              = $_module_parameters['log_user']
   $log_group             = $_module_parameters['log_group']
@@ -225,11 +230,5 @@ class nginx::params {
   $sites_available_group = $_module_parameters['root_group']
   $sites_available_mode  = '0644'
   $super_user            = true
-  if fact('nginx_version') {
-    # enable only for releases that are older than 1.15.0
-    $add_listen_directive = versioncmp(fact('nginx_version'), '1.15.0') < 0
-  } else {
-    $add_listen_directive = true
-  }
   ### END Referenced Variables
 }

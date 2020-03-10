@@ -77,6 +77,9 @@
     rewrite <%= rewrite_rule %>;
     <%- end -%>
 <% end -%>
+<% if @limit_zone -%>
+    limit_req zone=<%= @limit_zone %>;
+<% end -%>
 <% if @log_not_found -%>
     log_not_found <%= @log_not_found %>;
 <% end -%>
@@ -103,6 +106,4 @@
     error_log <%= @error_log %> <%= @error_level %>;
     <% end -%>
 <% end -%>
-<% if @error_log -%>
-    error_log <%= @error_log %>;
-<% end -%>
+

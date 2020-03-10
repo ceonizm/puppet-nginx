@@ -22,6 +22,10 @@
 #   [*add_header*]                 - Hash: Adds headers to the HTTP response when response code is equal to 200, 204, 301, 302 or 304.
 #   [*index_files*]                - Default index files for NGINX to read when traversing a directory
 #   [*autoindex*]                  - Set it on 'on' or 'off 'to activate/deactivate autoindex directory listing. Undef by default.
+#   [*autoindex_exact_size*]       - Set it on 'on' or 'off' to activate/deactivate autoindex displaying exact filesize, or rounded to
+#     kilobytes, megabytes and gigabytes. Undef by default.
+#   [*autoindex_format*]           - Sets the format of a directory listing. Undef by default.
+#   [*autoindex_localtime*]        - Specifies whether times in the directory listing should be output in the local time zone or UTC.
 #   [*proxy*]                      - Proxy server(s) for the root location to connect to.  Accepts a single value, can be used in
 #     conjunction with nginx::resource::upstream
 #   [*proxy_read_timeout*]         - Override the default proxy read timeout value of 90 seconds
@@ -71,11 +75,14 @@
 #   [*ssl_trusted_cert*]           - String: Specifies a file with trusted CA certificates in the PEM format used to verify client
 #     certificates and OCSP responses if ssl_stapling is enabled.
 #   [*ssl_verify_depth*]           - Integer: Sets the verification depth in the client certificates chain.
+#   [*ssl_password_file*]          - String: File containing the password for the SSL Key file.
 #   [*spdy*]                       - Toggles SPDY protocol.
 #   [*http2*]                      - Toggles HTTP/2 protocol.
 #   [*server_name*]                - List of servernames for which this server will respond. Default [$name].
 #   [*www_root*]                   - Specifies the location on disk for files to be read from. Cannot be set in conjunction with $proxy
 #   [*rewrite_www_to_non_www*]     - Adds a server directive and rewrite rule to rewrite www.domain.com to domain.com in order to avoid
+#     duplicate content (SEO);
+#   [*rewrite_non_www_to_www*]     - Adds a server directive and rewrite rule to rewrite domain.com to www.domain.com in order to avoid
 #     duplicate content (SEO);
 #   [*try_files*]                  - Specifies the locations for files to be checked as an array. Cannot be used in conjuction with $proxy.
 #   [*proxy_cache*]                - This directive sets name of zone for caching. The same zone can be used in multiple places.
@@ -131,7 +138,6 @@
 #   [*error_pages*]                - Hash: setup errors pages, hash key is the http code and hash value the page
 #   [*locations*]                  - Hash of servers resources used by this server
 #   [*locations_defaults*]         - Hash of location default settings
-#   [*add_listen_directive*]       - Boolean to determine if we should add 'ssl on;' to the vhost or not. defaults to true for nginx 1.14 and older, otherwise false
 # Actions:
 #
 # Requires:
@@ -186,6 +192,7 @@ define nginx::resource::server (
   Optional[String] $ssl_session_ticket_key                                       = undef,
   Optional[String] $ssl_trusted_cert                                             = undef,
   Optional[Integer] $ssl_verify_depth                                            = undef,
+  Optional[Stdlib::Absolutepath] $ssl_password_file                              = undef,
   Enum['on', 'off'] $spdy                                                        = $nginx::spdy,
   Enum['on', 'off'] $http2                                                       = $nginx::http2,
   Optional[String] $proxy                                                        = undef,
@@ -200,7 +207,7 @@ define nginx::resource::server (
   Optional[String] $proxy_cache_key                                              = undef,
   Optional[String] $proxy_cache_use_stale                                        = undef,
   Optional[Variant[Array[String], String]] $proxy_cache_valid                    = undef,
-  Optional[String] $proxy_cache_lock                                             = undef,
+  Optional[Enum['on', 'off']] $proxy_cache_lock                                  = undef,
   Optional[Variant[Array[String], String]] $proxy_cache_bypass                   = undef,
   Optional[String] $proxy_method                                                 = undef,
   Optional[String] $proxy_http_version                                           = undef,
@@ -222,9 +229,13 @@ define nginx::resource::server (
     'index.htm',
     'index.php'],
   Optional[String] $autoindex                                                    = undef,
+  Optional[Enum['on', 'off']] $autoindex_exact_size                              = undef,
+  Optional[Enum['html', 'xml', 'json', 'jsonp']] $autoindex_format               = undef,
+  Optional[Enum['on', 'off']] $autoindex_localtime                               = undef,
   Array[String] $server_name                                                     = [$name],
   Optional[String] $www_root                                                     = undef,
   Boolean $rewrite_www_to_non_www                                                = false,
+  Boolean $rewrite_non_www_to_www                                                = false,
   Optional[Hash] $location_custom_cfg                                            = undef,
   Optional[Hash] $location_cfg_prepend                                           = undef,
   Optional[Hash] $location_cfg_append                                            = undef,
@@ -269,11 +280,14 @@ define nginx::resource::server (
   $error_pages                                                                   = undef,
   Hash $locations                                                                = {},
   Hash $locations_defaults                                                       = {},
-  Boolean $add_listen_directive                                                  = $nginx::add_listen_directive,
 ) {
 
   if ! defined(Class['nginx']) {
     fail('You must include the nginx base class before using any defined resources')
+  }
+
+  if $rewrite_www_to_non_www == true and $rewrite_non_www_to_www == true {
+    fail('You must not set both $rewrite_www_to_non_www and $rewrite_non_www_to_www to true')
   }
 
   # Variables
@@ -391,6 +405,9 @@ define nginx::resource::server (
       try_files                   => $try_files,
       www_root                    => $www_root,
       autoindex                   => $autoindex,
+      autoindex_exact_size        => $autoindex_exact_size,
+      autoindex_format            => $autoindex_format,
+      autoindex_localtime         => $autoindex_localtime,
       index_files                 => $index_files,
       location_custom_cfg         => $location_custom_cfg,
       location_cfg_prepend        => $location_cfg_prepend,
@@ -445,7 +462,8 @@ define nginx::resource::server (
   if $ssl {
     # Access and error logs are named differently in ssl template
 
-    concat::fragment { "${name_sanitized}-ssl-header":
+    File <| title == $ssl_cert or path == $ssl_cert or title == $ssl_key or path == $ssl_key |>
+    -> concat::fragment { "${name_sanitized}-ssl-header":
       target  => $config_file,
       content => template('nginx/server/server_ssl_header.erb'),
       order   => '700',

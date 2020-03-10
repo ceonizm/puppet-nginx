@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe 'nginx::resource::upstream' do
   on_supported_os.each do |os, facts|
-    context "on #{os}" do
+    context "on #{os} with Facter #{facts[:facterversion]} and Puppet #{facts[:puppetversion]}" do
       let(:facts) do
         facts
       end
@@ -294,6 +294,14 @@ describe 'nginx::resource::upstream' do
               {
                 value: { member1: { server: '127.0.0.1', port: 8080 } },
                 match: '127.0.0.1:8080;'
+              },
+              {
+                value: { member1: { server: '2001:db8::1' } },
+                match: '[2001:db8::1]:80;'
+              },
+              {
+                value: { member1: { server: '2001:db8::1', port: 8080 } },
+                match: '[2001:db8::1]:8080;'
               },
               {
                 value: { member1: { weight: 20 } },
